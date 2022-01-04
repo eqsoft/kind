@@ -90,6 +90,10 @@ type Node struct {
 
 	/* Advanced fields */
 
+	// ContainerExtraArgs describes additional container runtime args for the node container
+	// These may be used to set fix ip or mac addresses for node container
+	ContainerExtraArgs map[string]string
+
 	// ExtraMounts describes additional mount points for the node container
 	// These may be used to bind a hostPath
 	ExtraMounts []Mount

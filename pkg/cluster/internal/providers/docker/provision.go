@@ -242,7 +242,13 @@ func runArgsForNode(node *config.Node, clusterIPFamily config.ClusterIPFamily, n
 	case config.ControlPlaneRole:
 		args = append(args, "-e", "KUBECONFIG=/etc/kubernetes/admin.conf")
 	}
-
+	// custom ContainerExtraArgs
+	if len(node.ContainerExtraArgs) > 0 {
+		for k, v := range node.ContainerExtraArgs {
+			// TODO: check if key already exists
+			args = append(args, k, v)
+		}
+	}
 	// finally, specify the image to run
 	return append(args, node.Image), nil
 }
@@ -268,7 +274,6 @@ func runArgsForLoadBalancer(cfg *config.Cluster, name string, args []string) ([]
 		return nil, err
 	}
 	args = append(args, mappingArgs...)
-
 	// finally, specify the image to run
 	return append(args, loadbalancer.Image), nil
 }

@@ -50,7 +50,7 @@ func Convertv1alpha4(in *v1alpha4.Cluster) *Cluster {
 func convertv1alpha4Node(in *v1alpha4.Node, out *Node) {
 	out.Role = NodeRole(in.Role)
 	out.Image = in.Image
-
+	out.ContainerExtraArgs = in.ContainerExtraArgs
 	out.Labels = in.Labels
 	out.KubeadmConfigPatches = in.KubeadmConfigPatches
 	out.ExtraMounts = make([]Mount, len(in.ExtraMounts))
