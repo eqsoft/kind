@@ -84,6 +84,15 @@ func (p *provider) Provision(status *cli.Status, cfg *config.Cluster) (err error
 	status.Start(fmt.Sprintf("Preparing nodes %s", icons))
 	defer func() { status.End(err == nil) }()
 
+	// check for custom extraContainerArgs
+	for _, node := range cfg.Nodes {
+		if len(node.ContainerExtraArgs) > 0 {
+			p.logger.Warn("WARNING: Overriding existing or adding containerExtraArgs for node container may lead to dysfunctional behaviour.")
+			p.logger.Warn("WARNING: Be carefull!")
+			break
+		}
+	}
+
 	// plan creating the containers
 	createContainerFuncs, err := planCreation(cfg, networkName)
 	if err != nil {

@@ -243,6 +243,13 @@ func runArgsForNode(node *config.Node, clusterIPFamily config.ClusterIPFamily, n
 		args = append(args, "-e", "KUBECONFIG=/etc/kubernetes/admin.conf")
 	}
 
+	// custom ContainerExtraArgs
+	if len(node.ContainerExtraArgs) > 0 {
+		for k, v := range node.ContainerExtraArgs {
+			args = append(args, k, v)
+		}
+	}
+
 	// finally, specify the image to run
 	return append(args, node.Image), nil
 }
