@@ -21,21 +21,21 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"sigs.k8s.io/kind/pkg/exec"
 	"strings"
 	"time"
 
 	"sigs.k8s.io/kind/pkg/cluster/constants"
-	"sigs.k8s.io/kind/pkg/errors"
-	"sigs.k8s.io/kind/pkg/exec"
-	"sigs.k8s.io/kind/pkg/fs"
-
 	"sigs.k8s.io/kind/pkg/cluster/internal/loadbalancer"
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers/common"
+	"sigs.k8s.io/kind/pkg/errors"
+	"sigs.k8s.io/kind/pkg/fs"
 	"sigs.k8s.io/kind/pkg/internal/apis/config"
+	"sigs.k8s.io/kind/pkg/log"
 )
 
 // planCreation creates a slice of funcs that will create the containers
-func planCreation(cfg *config.Cluster, networkName string) (createContainerFuncs []func() error, err error) {
+func planCreation(cfg *config.Cluster, networkName string, logger log.Logger) (createContainerFuncs []func() error, err error) {
 	// we need to know all the names for NO_PROXY
 	// compute the names first before any actual node details
 	nodeNamer := common.MakeNodeNamer(cfg.Name)
@@ -108,7 +108,7 @@ func planCreation(cfg *config.Cluster, networkName string) (createContainerFuncs
 						ContainerPort: common.APIServerInternalPort,
 					},
 				)
-				args, err := runArgsForNode(node, cfg.Networking.IPFamily, name, genericArgs)
+				args, err := runArgsForNode(node, cfg.Networking.IPFamily, name, genericArgs, logger)
 				if err != nil {
 					return err
 				}
@@ -116,7 +116,7 @@ func planCreation(cfg *config.Cluster, networkName string) (createContainerFuncs
 			})
 		case config.WorkerRole:
 			createContainerFuncs = append(createContainerFuncs, func() error {
-				args, err := runArgsForNode(node, cfg.Networking.IPFamily, name, genericArgs)
+				args, err := runArgsForNode(node, cfg.Networking.IPFamily, name, genericArgs, logger)
 				if err != nil {
 					return err
 				}
@@ -197,7 +197,7 @@ func commonArgs(cluster string, cfg *config.Cluster, networkName string, nodeNam
 	return args, nil
 }
 
-func runArgsForNode(node *config.Node, clusterIPFamily config.ClusterIPFamily, name string, args []string) ([]string, error) {
+func runArgsForNode(node *config.Node, clusterIPFamily config.ClusterIPFamily, name string, args []string, logger log.Logger) ([]string, error) {
 	args = append([]string{
 		"--hostname", name, // make hostname match container name
 		// label the node with the role ID
@@ -242,11 +242,24 @@ func runArgsForNode(node *config.Node, clusterIPFamily config.ClusterIPFamily, n
 	case config.ControlPlaneRole:
 		args = append(args, "-e", "KUBECONFIG=/etc/kubernetes/admin.conf")
 	}
+
 	// custom ContainerExtraArgs
+	var existingArgs []string
 	if len(node.ContainerExtraArgs) > 0 {
 		for k, v := range node.ContainerExtraArgs {
-			// TODO: check if key already exists
+			// check if arg is already in use by kind
+			for _, arg := range args {
+				// should we allow replacing or doubling existing args?
+				// for args like --volume, -e etc. multiple args are allowed, but should we allow this?
+				if arg == k {
+					existingArgs = append(existingArgs, k)
+				}
+			}
 			args = append(args, k, v)
+		}
+		if len(existingArgs) > 0 {
+			logger.Warnf("WARNING: extraContainerArgs args already in use by kind: %v", strings.Join(existingArgs, ","))
+			//return nil, errors.Errorf("unallowed extraContainerArgs args: %v", strings.Join(existingArgs, ","))
 		}
 	}
 	// finally, specify the image to run

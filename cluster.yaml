@@ -17,6 +17,7 @@ nodes:
     containerExtraArgs:
       "--ip": "172.119.1.11"
       "--mac-address": "02:42:ac:77:01:01"
+      "--hostname": "blablub"
     kubeadmConfigPatches:
     - |
       kind: JoinConfiguration
